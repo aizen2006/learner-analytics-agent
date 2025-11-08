@@ -11,11 +11,7 @@ const router = express.Router();
 // Apply rate limiting
 router.use(analyzeRateLimiter);
 
-/**
- * POST /csv/analyze
- * Analyzes learner responses from a CSV file
- * Request body: { csvFilePath: string, moduleId?: string, cohort?: string }
- */
+// POST /csv/analyze - Analyze learner responses from CSV file
 router.post("/analyze", async (req, res) => {
   const startTime = Date.now();
   const logger = req.logger || console;
@@ -138,10 +134,7 @@ router.post("/analyze", async (req, res) => {
   }
 });
 
-/**
- * GET /csv/files
- * Lists available CSV files in the data directory
- */
+// GET /csv/files - List available CSV files
 router.get("/files", async (req, res) => {
   const logger = req.logger || console;
 

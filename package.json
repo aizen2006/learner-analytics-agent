@@ -1,21 +1,38 @@
 {
   "name": "learner-analytics-agent",
   "version": "1.0.0",
-  "description": "A data analytics ai agent ",
-  "main": "index.js",
+  "description": "Multi-agent analytics system for analyzing learner response data using OpenAI Agents SDK",
+  "main": "src/index.js",
   "type": "module",
   "scripts": {
-  "dev": "nodemon src/index.js"
-},
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "analytics",
+    "openai",
+    "learner-analytics",
+    "education"
+  ],
   "author": "soubhik halder",
   "license": "ISC",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "dependencies": {
     "@openai/agents": "^0.3.0",
     "axios": "^1.13.2",
+    "csv-parse": "^5.5.6",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "express-rate-limit": "^7.4.1",
     "nodemon": "^3.1.10",
     "openai": "^6.8.1",
+    "uuid": "^11.0.3",
+    "winston": "^3.17.0",
     "zod": "^3.25.76"
   }
 }

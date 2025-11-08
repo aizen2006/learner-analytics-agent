@@ -15,7 +15,7 @@ router.post("/", async (req, res) => {
   const logger = req.logger || console;
   
   try {
-    // 1️⃣ Validate request body
+    // Validate request body
     const validationResult = analyzeRequestSchema.safeParse(req.body);
     
     if (!validationResult.success) {
@@ -39,25 +39,25 @@ router.post("/", async (req, res) => {
 
     const { learnerResponses, moduleId, cohort } = validationResult.data;
 
-    // 2️⃣ Generate a unique session ID for this analysis
+    // Generate unique session ID
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const sessionId = `${moduleId || "module"}-${timestamp}`;
 
     logger.info("Starting analysis session", { sessionId, moduleId, cohort });
 
-    // 3️⃣ Run the manager agent system
+    // Run manager agent system
     const metrics = await runManager(sessionId, learnerResponses, {
       moduleId,
       cohort
     });
 
-    // 4️⃣ Attach context info
+    // Attach metadata
     metrics.sessionId = sessionId;
     metrics.moduleId = moduleId || "UnknownModule";
     metrics.cohort = cohort || "DefaultCohort";
     metrics.analyzedAt = new Date().toISOString();
 
-    // 5️⃣ Save metrics (stubbed write; replace with DB logic)
+    // Save metrics (TODO: Replace with database in production)
     await writeMetricsToDB(sessionId, metrics);
 
     const duration = Date.now() - startTime;
@@ -68,7 +68,6 @@ router.post("/", async (req, res) => {
       duration: `${duration}ms` 
     });
 
-    // 6️⃣ Return final structured analytics
     res.json({
       success: true,
       message: "Analysis completed successfully",

@@ -1,182 +1,167 @@
 # Learner Analytics Agent
 
-A production-ready multi-agent system built with OpenAI Agents SDK that analyzes learner response data and computes comprehensive analytics metrics including engagement, completion, mastery, ratings, and market insights.
+A multi-agent analytics system that analyzes learner response data using OpenAI Agents SDK. This system computes comprehensive metrics including engagement, completion, mastery, ratings, and market insights through coordinated specialist AI agents.
 
-## 🚀 Features
+## 🎯 What This Does
 
-- **Multi-Agent Architecture**: Coordinated specialist agents for different analytics domains
-- **Comprehensive Metrics**: Calculates engagement rate, completion rate, mastery scores, ratings, and market insights
-- **Parallel Processing**: Efficient parallel execution of specialist agents
-- **Input Validation**: Robust validation using Zod schemas
-- **Guardrails**: Built-in input/output validation for safety and reliability
-- **Session Management**: Context-aware processing with session memory
-- **RESTful API**: Clean Express.js API for integration
+This system takes learner response data (from API or CSV files) and uses multiple specialized AI agents to compute analytics metrics:
 
-## 📊 Analytics Metrics
+- **Engagement Rate** - How engaged learners are with content
+- **Completion Rate** - Percentage of learners who completed modules
+- **Mastery Scores** - Assessment correctness and strength metrics
+- **Ratings** - Average learner feedback ratings
+- **Market Insights** - Business metrics like readiness thresholds and health scores
 
-The system computes the following metrics:
+## 🚀 Quick Start
 
-- **engagementRate**: Measures learner interaction with content (0-1)
-- **completionRate**: Percentage of learners who completed the module (0-1)
-- **averageRating**: Mean rating from learner feedback (1-5)
-- **objectiveScore**: Average correctness score from assessments (0-1)
-- **STR**: Strength-to-completion composite score (0-1)
-- **strPercent**: Percentage of learners meeting readiness threshold (0-100)
-- **csr**: Conversion stopping ratio (0-1)
-- **cod**: Client objection demand (0-1)
-- **insightIndex**: Blended health score for overall module performance (0-1)
+### Prerequisites
+
+- Node.js 22 or later
+- OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
+
+### Installation
+
+1. **Clone and install:**
+   ```bash
+   git clone <repository-url>
+   cd learner-analytics-agent
+   npm install
+   ```
+
+2. **Set up environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your OPENAI_API_KEY
+   ```
+
+3. **Start the server:**
+   ```bash
+   npm run dev
+   ```
+
+   Server will start on `http://localhost:5000`
+
+## 📖 API Usage
+
+### Analyze Learner Responses (JSON)
+
+```bash
+curl -X POST http://localhost:5000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "learnerResponses": [
+      {
+        "learner_id": "learner_001",
+        "responses": [
+          {
+            "question_id": "q1",
+            "answer": "Answer A",
+            "correct": true,
+            "completed": true,
+            "rating": 4
+          }
+        ]
+      }
+    ],
+    "moduleId": "module_123",
+    "cohort": "cohort_2024"
+  }'
+```
+
+### Analyze from CSV File
+
+1. Place your CSV file in the `data/` directory (see `data/example_learner_responses.csv` for format)
+
+2. Analyze:
+   ```bash
+   curl -X POST http://localhost:5000/csv/analyze \
+     -H "Content-Type: application/json" \
+     -d '{
+       "csvFilePath": "data/example_learner_responses.csv",
+       "moduleId": "module_123",
+       "cohort": "cohort_2024"
+     }'
+   ```
+
+### Get Metrics
+
+```bash
+# Get all metrics
+curl http://localhost:5000/metrics
+
+# Get metrics by module
+curl http://localhost:5000/metrics?moduleId=module_123
+
+# Get metrics by session
+curl http://localhost:5000/metrics?sessionId=module_123-2024-01-01T00-00-00-000Z
+```
+
+### Health Check
+
+```bash
+curl http://localhost:5000/health
+```
+
+## 📁 CSV File Format
+
+CSV files should have these columns:
+
+| Column | Required | Description |
+|--------|----------|-------------|
+| `learner_id` | ✅ Yes | Unique learner identifier |
+| `question_id` | No | Question identifier |
+| `answer` | No | Answer text |
+| `correct` | No | Boolean (true/false) |
+| `completed` | No | Boolean (true/false) |
+| `rating` | No | Number (1-5) |
+| `timestamp` | No | ISO timestamp |
+
+**Example:**
+```csv
+learner_id,question_id,answer,correct,completed,rating,timestamp
+learner_001,q1,Answer A,true,true,4,2024-01-01T10:00:00Z
+learner_001,q2,Answer B,true,true,5,2024-01-01T10:05:00Z
+```
 
 ## 🏗️ Architecture
 
-The system uses a manager-agent pattern with specialized analyst agents:
+The system uses a **manager-agent pattern**:
 
 ```
-Manager Agent
+Manager Agent (orchestrator)
 ├── Engagement Analyst Agent
-├── Completion Analyst Agent
+├── Completion Analyst Agent  
 ├── Mastery Analyst Agent
 ├── Rating Analyst Agent
 └── Market Insight Analyst Agent
 ```
 
 Each specialist agent:
-- Has focused instructions for its domain
-- Uses tools for validation and calculations
-- Implements guardrails for input/output validation
-- Returns structured JSON output
+- Processes data in parallel for efficiency
+- Has domain-specific instructions
+- Validates inputs and outputs
+- Returns structured JSON results
 
-## 📦 Installation
+## 📊 Response Format
 
-### Prerequisites
+All analysis endpoints return:
 
-- Node.js 22 or later
-- npm or yarn
-- OpenAI API key
-
-### Setup
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/learner-analytics-agent.git
-cd learner-analytics-agent
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create a `.env` file in the root directory:
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-PORT=5000
-NODE_ENV=development
-```
-
-4. Start the development server:
-```bash
-npm run dev
-```
-
-The server will start on `http://localhost:5000` (or the port specified in your `.env` file).
-
-## 📖 API Documentation
-
-### POST /analyze
-
-Analyzes learner response data and returns comprehensive metrics.
-
-**Request Body:**
-```json
-{
-  "learnerResponses": [
-    {
-      "learner_id": "learner_123",
-      "responses": [
-        {
-          "question_id": "q1",
-          "answer": "answer_text",
-          "correct": true,
-          "completed": true,
-          "rating": 4,
-          "timestamp": "2024-01-01T00:00:00Z"
-        }
-      ]
-    }
-  ],
-  "moduleId": "module_123",
-  "cohort": "cohort_2024"
-}
-```
-
-### POST /csv/analyze
-
-Analyzes learner responses from a CSV file. This is useful for bulk processing.
-
-**Request Body:**
-```json
-{
-  "csvFilePath": "data/learner_responses.csv",
-  "moduleId": "module_123",
-  "cohort": "cohort_2024"
-}
-```
-
-**CSV File Format:**
-The CSV file should have the following columns:
-- `learner_id` (required): Unique identifier for the learner
-- `question_id` (optional): Identifier for the question
-- `answer` (optional): The answer provided
-- `correct` (optional): Boolean (true/false) indicating if answer is correct
-- `completed` (optional): Boolean (true/false) indicating if learner completed
-- `rating` (optional): Rating value (1-5)
-- `timestamp` (optional): ISO timestamp string
-
-**Example CSV:**
-```csv
-learner_id,question_id,answer,correct,completed,rating,timestamp
-learner_001,q1,Answer A,true,true,4,2024-01-01T10:00:00Z
-learner_001,q2,Answer B,true,true,5,2024-01-01T10:05:00Z
-learner_002,q1,Answer A,true,true,5,2024-01-01T11:00:00Z
-```
-
-### GET /csv/files
-
-Lists available CSV files in the data directory.
-
-**Query Parameters:**
-- `directory` (optional): Custom directory path (default: `./data`)
-
-**Response:**
-```json
-{
-  "success": true,
-  "files": [
-    "data/example_learner_responses.csv",
-    "data/learner_responses_2024.csv"
-  ],
-  "count": 2
-}
-```
-
-**Response:**
 ```json
 {
   "success": true,
   "message": "Analysis completed successfully",
   "sessionId": "module_123-2024-01-01T00-00-00-000Z",
   "data": {
-    "numberOfLearners": 1,
+    "numberOfLearners": 10,
     "engagementRate": 0.85,
-    "completionRate": 1.0,
-    "averageRating": 4.0,
-    "objectiveScore": 0.9,
-    "STR": 0.95,
-    "strPercent": 100,
-    "csr": 0.1,
-    "cod": 0.2,
-    "insightIndex": 0.85,
-    "sessionId": "module_123-2024-01-01T00-00-00-000Z",
+    "completionRate": 0.90,
+    "averageRating": 4.2,
+    "objectiveScore": 0.88,
+    "STR": 0.92,
+    "strPercent": 85,
+    "csr": 0.15,
+    "cod": 0.20,
+    "insightIndex": 0.87,
     "moduleId": "module_123",
     "cohort": "cohort_2024",
     "analyzedAt": "2024-01-01T00:00:00.000Z"
@@ -184,187 +169,106 @@ Lists available CSV files in the data directory.
 }
 ```
 
-### GET /metrics
-
-Retrieves stored metrics. Supports filtering by `moduleId` or `sessionId`.
-
-**Query Parameters:**
-- `moduleId` (optional): Filter by module ID
-- `sessionId` (optional): Get specific session metrics
-
-**Examples:**
-```bash
-# Get all metrics
-GET /metrics
-
-# Get metrics for a specific module
-GET /metrics?moduleId=module_123
-
-# Get metrics for a specific session
-GET /metrics?sessionId=module_123-2024-01-01T00-00-00-000Z
-```
-
-## 🧪 Usage Examples
-
-### Basic Analysis
-
-```javascript
-const axios = require('axios');
-
-const response = await axios.post('http://localhost:5000/analyze', {
-  learnerResponses: [
-    {
-      learner_id: 'learner_1',
-      responses: [
-        {
-          question_id: 'q1',
-          answer: 'answer',
-          correct: true,
-          completed: true,
-          rating: 5
-        }
-      ]
-    }
-  ],
-  moduleId: 'module_1',
-  cohort: 'cohort_2024'
-});
-
-console.log(response.data);
-```
-
-### Retrieving Metrics
-
-```javascript
-// Get all metrics
-const allMetrics = await axios.get('http://localhost:5000/metrics');
-
-// Get metrics for a specific module
-const moduleMetrics = await axios.get('http://localhost:5000/metrics?moduleId=module_1');
-```
-
-### Analyzing from CSV File
-
-```javascript
-// Analyze learner responses from a CSV file
-const response = await axios.post('http://localhost:5000/csv/analyze', {
-  csvFilePath: 'data/learner_responses.csv',
-  moduleId: 'module_1',
-  cohort: 'cohort_2024'
-});
-
-console.log(response.data);
-
-// List available CSV files
-const csvFiles = await axios.get('http://localhost:5000/csv/files');
-console.log(csvFiles.data);
-```
-
-## 🛠️ Development
-
-### Project Structure
+## 🛠️ Project Structure
 
 ```
 learner-analytics-agent/
 ├── src/
-│   ├── agents/
-│   │   ├── managerAgent.js      # Main orchestrator agent
-│   │   ├── engagementAgent.js   # Engagement metrics agent
-│   │   ├── completionAgent.js   # Completion metrics agent
-│   │   ├── masteryAgent.js      # Mastery metrics agent
-│   │   ├── ratingAgent.js       # Rating metrics agent
-│   │   ├── marketAgent.js        # Market insights agent
-│   │   └── index_src.js         # Agent exports
-│   ├── routes/
-│   │   ├── analyze.js           # Analysis endpoint
-│   │   └── metrics.js           # Metrics retrieval endpoint
-│   ├── tools/
-│   │   ├── validateInput.js     # Input validation utilities
-│   │   ├── calcStats.js         # Statistical calculations
-│   │   └── dbWrite.js           # Database operations
-│   └── index.js                 # Express server setup
-├── package.json
-└── README.md
+│   ├── agents/          # AI agent definitions
+│   ├── routes/          # API endpoints
+│   ├── schemas/         # Data validation schemas
+│   ├── tools/           # Utility functions
+│   ├── utils/           # Helper utilities
+│   └── middleware/      # Express middleware
+├── data/                # CSV data files
+├── .env.example         # Environment variables template
+├── Dockerfile           # Docker configuration
+└── README.md            # This file
 ```
 
-### Running in Development
+## 🐳 Docker
+
+Build and run with Docker:
 
 ```bash
-npm run dev
+docker build -t learner-analytics-agent .
+docker run -p 5000:5000 \
+  -e OPENAI_API_KEY=your_key_here \
+  learner-analytics-agent
 ```
 
-This uses `nodemon` to automatically restart the server on file changes.
+## 🚀 Deployment
 
-## 🔒 Security Considerations
+See [DEPLOY.md](./DEPLOY.md) for deployment instructions on:
+- Render
+- Fly.io
+- Railway
+- Heroku
 
-- **API Key Protection**: Never commit your `.env` file or API keys
-- **Input Validation**: All inputs are validated using Zod schemas
-- **Rate Limiting**: Consider implementing rate limiting for production
-- **Error Handling**: Sensitive error details are not exposed to clients
+## 📝 Environment Variables
 
-## 🚧 Roadmap
+Required:
+- `OPENAI_API_KEY` - Your OpenAI API key
 
-- [ ] Database persistence (currently in-memory)
-- [ ] Comprehensive test suite
-- [ ] Rate limiting middleware
-- [ ] Structured logging with Winston/Pino
-- [ ] Health check endpoint
-- [ ] Metrics monitoring and observability
-- [ ] TypeScript migration
-- [ ] CI/CD pipeline
-- [ ] Docker containerization
-- [ ] API documentation with Swagger/OpenAPI
+Optional:
+- `PORT` - Server port (default: 5000)
+- `NODE_ENV` - Environment (default: development)
+- `LOG_LEVEL` - Logging level (default: info)
 
-## 🤝 Contributing
+See `.env.example` for all options.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## 🔍 What's Implemented
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+✅ Multi-agent orchestration  
+✅ Parallel agent execution  
+✅ Input/output validation  
+✅ CSV file support  
+✅ Rate limiting  
+✅ Error handling with retries  
+✅ Structured logging  
+✅ Health checks  
+✅ Metrics collection  
+✅ Graceful shutdown  
 
-## 📝 License
+## 📋 Next Steps for Production
 
-This project is licensed under the ISC License.
+See [NEXT_STEPS.md](./NEXT_STEPS.md) for a comprehensive list of what needs to be added for production deployment, including:
+- Database implementation
+- Authentication & authorization
+- Testing infrastructure
+- Enhanced monitoring
+- And more...
 
-## 👤 Author
+## 🐛 Troubleshooting
 
-**Soubhik Halder**
+**Server won't start:**
+- Check that `OPENAI_API_KEY` is set in `.env`
+- Verify Node.js version is 22+
+- Check port 5000 is not in use
 
-## 🙏 Acknowledgments
+**CSV file not found:**
+- Ensure file path is relative to project root
+- Check file exists in `data/` directory
+- Verify CSV format matches expected columns
 
-- Built with [OpenAI Agents SDK](https://github.com/openai/openai-agents-js)
-- Uses [Express.js](https://expressjs.com/) for the API
-- Validation powered by [Zod](https://github.com/colinhacks/zod)
+**Agent errors:**
+- Check OpenAI API key is valid
+- Verify API quota/credits available
+- Check logs for detailed error messages
 
 ## 📚 Resources
 
-- [OpenAI Agents SDK Documentation](https://openai.github.io/openai-agents-js/)
-- [OpenAI Agents SDK GitHub](https://github.com/openai/openai-agents-js)
-- [Express.js Documentation](https://expressjs.com/)
-- [Zod Documentation](https://zod.dev/)
+- [OpenAI Agents SDK Docs](https://openai.github.io/openai-agents-js/)
+- [OpenAI API Documentation](https://platform.openai.com/docs)
 
-## ⚠️ Important Notes
+## 📄 License
 
-- This is currently a development version. Production deployment requires additional work on error handling, logging, database persistence, and testing.
-- The current implementation uses in-memory storage. Data will be lost on server restart.
-- Ensure you have sufficient OpenAI API credits before processing large datasets.
-- Monitor API usage to avoid unexpected costs.
+ISC
 
-## 🐛 Known Issues
+## 👤 Author
 
-- In-memory storage (data lost on restart)
-- No retry logic for transient API failures
-- Limited error recovery mechanisms
-- No timeout protection for long-running analyses
-
-## 📞 Support
-
-For issues and questions, please open an issue on GitHub.
+Soubhik Halder
 
 ---
 
-Made with ❤️ using OpenAI Agents SDK
-
+**Note:** This is a demo/proof-of-concept build. See `NEXT_STEPS.md` for production requirements.

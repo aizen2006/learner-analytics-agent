@@ -10,6 +10,7 @@ import {
 import { retryWithBackoff, isTransientError } from "../utils/retry.js";
 import { withTimeout } from "../utils/timeout.js";
 import { recordAgentExecution } from "../utils/metrics.js";
+import { logger } from "../utils/logger.js";
 
 export const managerAgent = new Agent({
   name: "Manager Agent",
@@ -47,20 +48,25 @@ Your task is to:
 `
 });
 
+/**
+ * Runs the manager agent system to analyze learner responses
+ * @param {string} sessionId - Unique session identifier
+ * @param {Array} responses - Array of learner responses
+ * @param {Object} contextInfo - Context information (moduleId, cohort, etc.)
+ * @returns {Promise<Object>} - Combined metrics from all agents
+ */
 export async function runManager(sessionId, responses, contextInfo = {}) {
-  // Create session memory to store context
   const session = new Session(sessionId);
 
-  // Save high-level context (useful for multi-run comparisons)
   session.memory.set("context", {
     moduleId: contextInfo.moduleId || "UnknownModule",
     cohort: contextInfo.cohort || "DefaultCohort",
     previousRuns: contextInfo.previousRuns || []
   });
 
-  // 1️⃣ Delegate parallel execution of specialist agents with error handling, retry, and timeout
-  const AGENT_TIMEOUT_MS = 30000; // 30 seconds per agent
-  const MAX_RETRIES = 2; // Retry up to 2 times (3 total attempts)
+  // Configuration for agent execution
+  const AGENT_TIMEOUT_MS = 30000;
+  const MAX_RETRIES = 2;
 
   const runAgentWithRetryAndTimeout = async (agent, agentName) => {
     const agentStartTime = Date.now();
@@ -96,15 +102,16 @@ export async function runManager(sessionId, responses, contextInfo = {}) {
     runAgentWithRetryAndTimeout(marketAgent, "Market Agent"),
   ]);
 
-  // 2️⃣ Process results and handle partial failures
+  // Process results and handle partial failures
   const [engagementResult, completionResult, masteryResult, ratingResult, marketResult] = results;
   
-  // Helper to extract output or provide defaults
   const getOutput = (result, agentName) => {
     if (result.status === 'fulfilled' && result.value?.output) {
       return result.value.output;
     }
-    console.error(`❌ ${agentName} failed:`, result.status === 'rejected' ? result.reason : 'No output');
+    logger.error(`${agentName} failed`, { 
+      reason: result.status === 'rejected' ? result.reason?.message : 'No output' 
+    });
     return {};
   };
 
@@ -114,10 +121,9 @@ export async function runManager(sessionId, responses, contextInfo = {}) {
   const rating = getOutput(ratingResult, 'Rating Agent');
   const market = getOutput(marketResult, 'Market Agent');
 
-  // 3️⃣ Compute the number of learners locally
   const numberOfLearners = Array.isArray(responses) ? responses.length : 0;
 
-  // 4️⃣ Merge all results into a unified JSON with defaults
+  // Merge all results into unified metrics with defaults
   const combinedMetrics = {
     numberOfLearners,
     engagementRate: engagement.engagementRate ?? 0,
@@ -131,7 +137,7 @@ export async function runManager(sessionId, responses, contextInfo = {}) {
     insightIndex: market.insightIndex ?? 0
   };
 
-  // 5️⃣ Optionally store context/memory for trend tracking
+  // Store context for trend tracking
   try {
     const context = session.memory.get("context");
     if (context && Array.isArray(context.previousRuns)) {
@@ -139,9 +145,8 @@ export async function runManager(sessionId, responses, contextInfo = {}) {
       session.memory.set("context", context);
     }
   } catch (err) {
-    console.warn("⚠️ Failed to update session memory:", err.message);
+    logger.warn("Failed to update session memory", { error: err.message });
   }
 
-  // 6️⃣ Return the combined output
   return combinedMetrics;
 }
