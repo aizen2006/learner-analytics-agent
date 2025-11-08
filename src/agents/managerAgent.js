@@ -1,4 +1,5 @@
-import { createAgent, Runner, Session } from "@openai/agents";
+import { Agent, Runner, Session } from "@openai/agents";
+import { z } from "zod";
 import {
   engagementAgent,
   completionAgent,
@@ -6,8 +7,11 @@ import {
   ratingAgent,
   marketAgent
 } from "./index.js";
+import { retryWithBackoff, isTransientError } from "../utils/retry.js";
+import { withTimeout } from "../utils/timeout.js";
+import { recordAgentExecution } from "../utils/metrics.js";
 
-export const managerAgent = createAgent({
+export const managerAgent = new Agent({
   name: "Manager Agent",
   model: "gpt-4o-mini",
 
@@ -54,33 +58,90 @@ export async function runManager(sessionId, responses, contextInfo = {}) {
     previousRuns: contextInfo.previousRuns || []
   });
 
-  // 1️⃣ Delegate parallel execution of specialist agents
-  const [engagement, completion, mastery, rating, market] = await Promise.all([
-    Runner.run(engagementAgent, { responses }, { session }),
-    Runner.run(completionAgent, { responses }, { session }),
-    Runner.run(masteryAgent, { responses }, { session }),
-    Runner.run(ratingAgent, { responses }, { session }),
-    Runner.run(marketAgent, { responses }, { session })
-  ]);
+  // 1️⃣ Delegate parallel execution of specialist agents with error handling, retry, and timeout
+  const AGENT_TIMEOUT_MS = 30000; // 30 seconds per agent
+  const MAX_RETRIES = 2; // Retry up to 2 times (3 total attempts)
 
-  // 2️⃣ Compute the number of learners locally
-  const numberOfLearners = Array.isArray(responses) ? responses.length : 0;
-
-  // 3️⃣ Merge all results into a unified JSON
-  const combinedMetrics = {
-    numberOfLearners,
-    ...engagement.output,
-    ...completion.output,
-    ...mastery.output,
-    ...rating.output,
-    ...market.output
+  const runAgentWithRetryAndTimeout = async (agent, agentName) => {
+    const agentStartTime = Date.now();
+    try {
+      const result = await retryWithBackoff(
+        () => withTimeout(
+          Runner.run(agent, { responses }, { session }),
+          AGENT_TIMEOUT_MS,
+          `${agentName} timed out after ${AGENT_TIMEOUT_MS}ms`
+        ),
+        {
+          maxAttempts: MAX_RETRIES + 1,
+          initialDelay: 1000,
+          maxDelay: 5000,
+          shouldRetry: isTransientError,
+        }
+      );
+      const duration = Date.now() - agentStartTime;
+      recordAgentExecution(agentName, true, duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - agentStartTime;
+      recordAgentExecution(agentName, false, duration);
+      throw error;
+    }
   };
 
-  // 4️⃣ Optionally store context/memory for trend tracking
-  const context = session.memory.get("context");
-  context.previousRuns.push(combinedMetrics);
-  session.memory.set("context", context);
+  const results = await Promise.allSettled([
+    runAgentWithRetryAndTimeout(engagementAgent, "Engagement Agent"),
+    runAgentWithRetryAndTimeout(completionAgent, "Completion Agent"),
+    runAgentWithRetryAndTimeout(masteryAgent, "Mastery Agent"),
+    runAgentWithRetryAndTimeout(ratingAgent, "Rating Agent"),
+    runAgentWithRetryAndTimeout(marketAgent, "Market Agent"),
+  ]);
 
-  // 5️⃣ Return the combined output
+  // 2️⃣ Process results and handle partial failures
+  const [engagementResult, completionResult, masteryResult, ratingResult, marketResult] = results;
+  
+  // Helper to extract output or provide defaults
+  const getOutput = (result, agentName) => {
+    if (result.status === 'fulfilled' && result.value?.output) {
+      return result.value.output;
+    }
+    console.error(`❌ ${agentName} failed:`, result.status === 'rejected' ? result.reason : 'No output');
+    return {};
+  };
+
+  const engagement = getOutput(engagementResult, 'Engagement Agent');
+  const completion = getOutput(completionResult, 'Completion Agent');
+  const mastery = getOutput(masteryResult, 'Mastery Agent');
+  const rating = getOutput(ratingResult, 'Rating Agent');
+  const market = getOutput(marketResult, 'Market Agent');
+
+  // 3️⃣ Compute the number of learners locally
+  const numberOfLearners = Array.isArray(responses) ? responses.length : 0;
+
+  // 4️⃣ Merge all results into a unified JSON with defaults
+  const combinedMetrics = {
+    numberOfLearners,
+    engagementRate: engagement.engagementRate ?? 0,
+    completionRate: completion.completionRate ?? 0,
+    averageRating: rating.averageRating ?? 0,
+    objectiveScore: mastery.objectiveScore ?? 0,
+    STR: mastery.STR ?? 0,
+    strPercent: market.strPercent ?? 0,
+    csr: market.csr ?? 0,
+    cod: market.cod ?? 0,
+    insightIndex: market.insightIndex ?? 0
+  };
+
+  // 5️⃣ Optionally store context/memory for trend tracking
+  try {
+    const context = session.memory.get("context");
+    if (context && Array.isArray(context.previousRuns)) {
+      context.previousRuns.push(combinedMetrics);
+      session.memory.set("context", context);
+    }
+  } catch (err) {
+    console.warn("⚠️ Failed to update session memory:", err.message);
+  }
+
+  // 6️⃣ Return the combined output
   return combinedMetrics;
 }

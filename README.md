@@ -109,6 +109,56 @@ Analyzes learner response data and returns comprehensive metrics.
 }
 ```
 
+### POST /csv/analyze
+
+Analyzes learner responses from a CSV file. This is useful for bulk processing.
+
+**Request Body:**
+```json
+{
+  "csvFilePath": "data/learner_responses.csv",
+  "moduleId": "module_123",
+  "cohort": "cohort_2024"
+}
+```
+
+**CSV File Format:**
+The CSV file should have the following columns:
+- `learner_id` (required): Unique identifier for the learner
+- `question_id` (optional): Identifier for the question
+- `answer` (optional): The answer provided
+- `correct` (optional): Boolean (true/false) indicating if answer is correct
+- `completed` (optional): Boolean (true/false) indicating if learner completed
+- `rating` (optional): Rating value (1-5)
+- `timestamp` (optional): ISO timestamp string
+
+**Example CSV:**
+```csv
+learner_id,question_id,answer,correct,completed,rating,timestamp
+learner_001,q1,Answer A,true,true,4,2024-01-01T10:00:00Z
+learner_001,q2,Answer B,true,true,5,2024-01-01T10:05:00Z
+learner_002,q1,Answer A,true,true,5,2024-01-01T11:00:00Z
+```
+
+### GET /csv/files
+
+Lists available CSV files in the data directory.
+
+**Query Parameters:**
+- `directory` (optional): Custom directory path (default: `./data`)
+
+**Response:**
+```json
+{
+  "success": true,
+  "files": [
+    "data/example_learner_responses.csv",
+    "data/learner_responses_2024.csv"
+  ],
+  "count": 2
+}
+```
+
 **Response:**
 ```json
 {
@@ -191,6 +241,23 @@ const allMetrics = await axios.get('http://localhost:5000/metrics');
 
 // Get metrics for a specific module
 const moduleMetrics = await axios.get('http://localhost:5000/metrics?moduleId=module_1');
+```
+
+### Analyzing from CSV File
+
+```javascript
+// Analyze learner responses from a CSV file
+const response = await axios.post('http://localhost:5000/csv/analyze', {
+  csvFilePath: 'data/learner_responses.csv',
+  moduleId: 'module_1',
+  cohort: 'cohort_2024'
+});
+
+console.log(response.data);
+
+// List available CSV files
+const csvFiles = await axios.get('http://localhost:5000/csv/files');
+console.log(csvFiles.data);
 ```
 
 ## 🛠️ Development

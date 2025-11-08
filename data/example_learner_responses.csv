@@ -1,0 +1,13 @@
+learner_id,question_id,answer,correct,completed,rating,timestamp
+learner_001,q1,Answer A,true,true,4,2024-01-01T10:00:00Z
+learner_001,q2,Answer B,true,true,5,2024-01-01T10:05:00Z
+learner_001,q3,Answer C,false,true,3,2024-01-01T10:10:00Z
+learner_002,q1,Answer A,true,true,5,2024-01-01T11:00:00Z
+learner_002,q2,Answer B,true,true,5,2024-01-01T11:05:00Z
+learner_002,q3,Answer C,true,true,5,2024-01-01T11:10:00Z
+learner_003,q1,Answer B,false,true,2,2024-01-01T12:00:00Z
+learner_003,q2,Answer A,false,false,1,2024-01-01T12:05:00Z
+learner_004,q1,Answer A,true,true,4,2024-01-01T13:00:00Z
+learner_004,q2,Answer B,true,true,4,2024-01-01T13:05:00Z
+learner_004,q3,Answer C,true,true,4,2024-01-01T13:10:00Z
+

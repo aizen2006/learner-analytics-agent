@@ -1,5 +1,7 @@
 import { Agent, tool } from "@openai/agents";
+import { z } from "zod";
 import { validateLearnerResponses } from "../tools/validateInput.js";
+import { responsesToolParamSchema } from "../schemas/learnerResponse.js";
 
 export const masteryAgent = new Agent({
   name: "Mastery Analyst Agent",
@@ -12,25 +14,42 @@ Compute two metrics:
 Return JSON: { "objectiveScore": number, "STR": number }.
 No extra fields.
   `,
+  outputType: z.object({
+    objectiveScore: z.number().min(0).max(1),
+    STR: z.number().min(0).max(1)
+  }),
   tools: [
     tool({
       name: "validateLearnerResponses",
       description: "Validate input structure",
-      parameters: { responses: "array" },
+      parameters: responsesToolParamSchema,
       execute: async ({ responses }) => validateLearnerResponses(responses)
     })
   ],
   guardrails: {
-    input: (inputs) => {
-      if (!inputs.responses) throw new Error("Missing responses field for mastery agent");
+    input: async (inputs) => {
+      if (!inputs.responses) {
+        return {
+          tripwireTriggered: true,
+          outputInfo: { error: "Missing responses field for mastery agent" }
+        };
+      }
+      return { tripwireTriggered: false };
     },
-    output: (output) => {
-      if (typeof output.objectiveScore !== "number" || output.objectiveScore < 0 || output.objectiveScore > 1) {
-        throw new Error("Invalid objectiveScore");
+    output: async (output) => {
+      if (typeof output?.objectiveScore !== "number" || output.objectiveScore < 0 || output.objectiveScore > 1) {
+        return {
+          tripwireTriggered: true,
+          outputInfo: { error: "Invalid objectiveScore" }
+        };
       }
-      if (typeof output.STR !== "number" || output.STR < 0 || output.STR > 1) {
-        throw new Error("Invalid STR");
+      if (typeof output?.STR !== "number" || output.STR < 0 || output.STR > 1) {
+        return {
+          tripwireTriggered: true,
+          outputInfo: { error: "Invalid STR" }
+        };
       }
+      return { tripwireTriggered: false };
     }
   }
 });

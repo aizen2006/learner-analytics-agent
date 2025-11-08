@@ -1,7 +1,11 @@
 import express from "express";
 import { metricsMemory } from "../tools/dbWrite.js";
+import { metricsRateLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
+
+// Apply rate limiting to all routes
+router.use(metricsRateLimiter);
 
 // Fetch all metrics or by moduleId/sessionId
 router.get("/", (req, res) => {
